@@ -13,18 +13,46 @@ def limpiar_ventana():
         widget.destroy()
 
 
-def boton(texto, comando):
+def crear_boton(texto, comando, color=COLOR_BOTON, texto_color=COLOR_TITULO):
     return tk.Button(
         ventana,
         text=texto,
         width=25,
         height=2,
-        bg=COLOR_BOTON,
-        fg=COLOR_TITULO,
+        bg=color,
+        fg=texto_color,
         font=("Arial", 10, "bold"),
         activebackground="#ffb3c1",
         command=comando
     )
+
+
+def crear_titulo(texto):
+    tk.Label(
+        ventana,
+        text=texto,
+        font=("Arial", 22, "bold"),
+        bg=COLOR_FONDO,
+        fg=COLOR_TITULO
+    ).pack(pady=15)
+
+
+def ejecutar_consulta(sql, datos=None, retornar=False):
+    conexion = conectar()
+    cursor = conexion.cursor()
+
+    if datos:
+        cursor.execute(sql, datos)
+    else:
+        cursor.execute(sql)
+
+    if retornar:
+        resultado = cursor.fetchall()
+        conexion.close()
+        return resultado
+
+    conexion.commit()
+    conexion.close()
 
 
 def menu_principal():
@@ -39,33 +67,16 @@ def menu_principal():
         fg=COLOR_TITULO
     ).pack(pady=40)
 
-    boton("Productos", ventana_productos).pack(pady=10)
-    boton("Clientes", ventana_clientes).pack(pady=10)
-    boton("Ventas", ventana_ventas).pack(pady=10)
-
-    tk.Button(
-        ventana,
-        text="Salir",
-        width=25,
-        height=2,
-        bg=COLOR_SALIR,
-        fg="white",
-        font=("Arial", 10, "bold"),
-        command=ventana.destroy
-    ).pack(pady=10)
+    crear_boton("Productos", ventana_productos).pack(pady=10)
+    crear_boton("Clientes", ventana_clientes).pack(pady=10)
+    crear_boton("Ventas", ventana_ventas).pack(pady=10)
+    crear_boton("Salir", ventana.destroy, COLOR_SALIR, "white").pack(pady=10)
 
 
 def ventana_productos():
     limpiar_ventana()
     ventana.configure(bg=COLOR_FONDO)
-
-    tk.Label(
-        ventana,
-        text="GESTIÓN DE PRODUCTOS",
-        font=("Arial", 22, "bold"),
-        bg=COLOR_FONDO,
-        fg=COLOR_TITULO
-    ).pack(pady=15)
+    crear_titulo("GESTIÓN DE PRODUCTOS")
 
     tk.Label(ventana, text="ID para editar/eliminar", bg=COLOR_FONDO, fg=COLOR_TITULO).pack()
     entrada_id = tk.Entry(ventana, width=30)
@@ -105,40 +116,33 @@ def ventana_productos():
             entrada.delete(0, tk.END)
 
     def mostrar():
-        for fila in tabla.get_children():
-            tabla.delete(fila)
+        tabla.delete(*tabla.get_children())
+        productos = ejecutar_consulta(
+            "SELECT * FROM productos ORDER BY id_producto ASC",
+            retornar=True
+        )
 
-        conexion = conectar()
-        cursor = conexion.cursor()
-        cursor.execute("SELECT * FROM productos ORDER BY id_producto ASC")
-
-        for producto in cursor.fetchall():
+        for producto in productos:
             tabla.insert("", tk.END, values=producto)
-
-        conexion.close()
 
     def guardar():
         try:
-            conexion = conectar()
-            cursor = conexion.cursor()
+            datos = (
+                entradas["Nombre"].get(),
+                entradas["Categoría"].get(),
+                entradas["Talla"].get(),
+                entradas["Color"].get(),
+                float(entradas["Precio"].get()),
+                int(entradas["Stock"].get())
+            )
 
-            cursor.execute(
+            ejecutar_consulta(
                 """
                 INSERT INTO productos (nombre, categoria, talla, color, precio, stock)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 """,
-                (
-                    entradas["Nombre"].get(),
-                    entradas["Categoría"].get(),
-                    entradas["Talla"].get(),
-                    entradas["Color"].get(),
-                    float(entradas["Precio"].get()),
-                    int(entradas["Stock"].get())
-                )
+                datos
             )
-
-            conexion.commit()
-            conexion.close()
 
             messagebox.showinfo("Éxito", "Producto guardado correctamente")
             limpiar()
@@ -149,28 +153,24 @@ def ventana_productos():
 
     def editar():
         try:
-            conexion = conectar()
-            cursor = conexion.cursor()
+            datos = (
+                entradas["Nombre"].get(),
+                entradas["Categoría"].get(),
+                entradas["Talla"].get(),
+                entradas["Color"].get(),
+                float(entradas["Precio"].get()),
+                int(entradas["Stock"].get()),
+                int(entrada_id.get())
+            )
 
-            cursor.execute(
+            ejecutar_consulta(
                 """
                 UPDATE productos
                 SET nombre=%s, categoria=%s, talla=%s, color=%s, precio=%s, stock=%s
                 WHERE id_producto=%s
                 """,
-                (
-                    entradas["Nombre"].get(),
-                    entradas["Categoría"].get(),
-                    entradas["Talla"].get(),
-                    entradas["Color"].get(),
-                    float(entradas["Precio"].get()),
-                    int(entradas["Stock"].get()),
-                    int(entrada_id.get())
-                )
+                datos
             )
-
-            conexion.commit()
-            conexion.close()
 
             messagebox.showinfo("Éxito", "Producto editado correctamente")
             limpiar()
@@ -181,16 +181,10 @@ def ventana_productos():
 
     def eliminar():
         try:
-            conexion = conectar()
-            cursor = conexion.cursor()
-
-            cursor.execute(
+            ejecutar_consulta(
                 "DELETE FROM productos WHERE id_producto=%s",
                 (int(entrada_id.get()),)
             )
-
-            conexion.commit()
-            conexion.close()
 
             messagebox.showinfo("Éxito", "Producto eliminado correctamente")
             limpiar()
@@ -199,20 +193,11 @@ def ventana_productos():
         except:
             messagebox.showerror("Error", "No se puede eliminar. Puede estar relacionado con una venta.")
 
-    boton("Guardar Producto", guardar).pack(pady=3)
-    boton("Mostrar Productos", mostrar).pack(pady=3)
-    boton("Editar Producto", editar).pack(pady=3)
-    boton("Eliminar Producto", eliminar).pack(pady=3)
-
-    tk.Button(
-        ventana,
-        text="Regresar",
-        width=20,
-        height=2,
-        bg=COLOR_SALIR,
-        fg="white",
-        command=menu_principal
-    ).pack(pady=10)
+    crear_boton("Guardar Producto", guardar).pack(pady=3)
+    crear_boton("Mostrar Productos", mostrar).pack(pady=3)
+    crear_boton("Editar Producto", editar).pack(pady=3)
+    crear_boton("Eliminar Producto", eliminar).pack(pady=3)
+    crear_boton("Regresar", menu_principal, COLOR_SALIR, "white").pack(pady=10)
 
     mostrar()
 
@@ -220,34 +205,20 @@ def ventana_productos():
 def ventana_clientes():
     limpiar_ventana()
     ventana.configure(bg=COLOR_FONDO)
-
-    tk.Label(
-        ventana,
-        text="GESTIÓN DE CLIENTES",
-        font=("Arial", 22, "bold"),
-        bg=COLOR_FONDO,
-        fg=COLOR_TITULO
-    ).pack(pady=15)
+    crear_titulo("GESTIÓN DE CLIENTES")
 
     tk.Label(ventana, text="ID para editar/eliminar", bg=COLOR_FONDO, fg=COLOR_TITULO).pack()
     entrada_id = tk.Entry(ventana, width=30)
     entrada_id.pack(pady=3)
 
-    tk.Label(ventana, text="Nombre", bg=COLOR_FONDO, fg=COLOR_TITULO).pack()
-    nombre = tk.Entry(ventana, width=30)
-    nombre.pack(pady=3)
+    campos = ["Nombre", "Apellido", "Teléfono", "Correo"]
+    entradas = {}
 
-    tk.Label(ventana, text="Apellido", bg=COLOR_FONDO, fg=COLOR_TITULO).pack()
-    apellido = tk.Entry(ventana, width=30)
-    apellido.pack(pady=3)
-
-    tk.Label(ventana, text="Teléfono", bg=COLOR_FONDO, fg=COLOR_TITULO).pack()
-    telefono = tk.Entry(ventana, width=30)
-    telefono.pack(pady=3)
-
-    tk.Label(ventana, text="Correo", bg=COLOR_FONDO, fg=COLOR_TITULO).pack()
-    correo = tk.Entry(ventana, width=30)
-    correo.pack(pady=3)
+    for campo in campos:
+        tk.Label(ventana, text=campo, bg=COLOR_FONDO, fg=COLOR_TITULO).pack()
+        entrada = tk.Entry(ventana, width=30)
+        entrada.pack(pady=3)
+        entradas[campo] = entrada
 
     tabla = ttk.Treeview(
         ventana,
@@ -268,39 +239,35 @@ def ventana_clientes():
 
     def limpiar():
         entrada_id.delete(0, tk.END)
-        nombre.delete(0, tk.END)
-        apellido.delete(0, tk.END)
-        telefono.delete(0, tk.END)
-        correo.delete(0, tk.END)
+        for entrada in entradas.values():
+            entrada.delete(0, tk.END)
 
     def mostrar():
-        for fila in tabla.get_children():
-            tabla.delete(fila)
+        tabla.delete(*tabla.get_children())
+        clientes = ejecutar_consulta(
+            "SELECT * FROM clientes ORDER BY id_cliente ASC",
+            retornar=True
+        )
 
-        conexion = conectar()
-        cursor = conexion.cursor()
-        cursor.execute("SELECT * FROM clientes ORDER BY id_cliente ASC")
-
-        for cliente in cursor.fetchall():
+        for cliente in clientes:
             tabla.insert("", tk.END, values=cliente)
-
-        conexion.close()
 
     def guardar():
         try:
-            conexion = conectar()
-            cursor = conexion.cursor()
+            datos = (
+                entradas["Nombre"].get(),
+                entradas["Apellido"].get(),
+                entradas["Teléfono"].get(),
+                entradas["Correo"].get()
+            )
 
-            cursor.execute(
+            ejecutar_consulta(
                 """
                 INSERT INTO clientes (nombre, apellido, telefono, correo)
                 VALUES (%s, %s, %s, %s)
                 """,
-                (nombre.get(), apellido.get(), telefono.get(), correo.get())
+                datos
             )
-
-            conexion.commit()
-            conexion.close()
 
             messagebox.showinfo("Éxito", "Cliente guardado correctamente")
             limpiar()
@@ -311,26 +278,22 @@ def ventana_clientes():
 
     def editar():
         try:
-            conexion = conectar()
-            cursor = conexion.cursor()
+            datos = (
+                entradas["Nombre"].get(),
+                entradas["Apellido"].get(),
+                entradas["Teléfono"].get(),
+                entradas["Correo"].get(),
+                int(entrada_id.get())
+            )
 
-            cursor.execute(
+            ejecutar_consulta(
                 """
                 UPDATE clientes
                 SET nombre=%s, apellido=%s, telefono=%s, correo=%s
                 WHERE id_cliente=%s
                 """,
-                (
-                    nombre.get(),
-                    apellido.get(),
-                    telefono.get(),
-                    correo.get(),
-                    int(entrada_id.get())
-                )
+                datos
             )
-
-            conexion.commit()
-            conexion.close()
 
             messagebox.showinfo("Éxito", "Cliente editado correctamente")
             limpiar()
@@ -341,16 +304,10 @@ def ventana_clientes():
 
     def eliminar():
         try:
-            conexion = conectar()
-            cursor = conexion.cursor()
-
-            cursor.execute(
+            ejecutar_consulta(
                 "DELETE FROM clientes WHERE id_cliente=%s",
                 (int(entrada_id.get()),)
             )
-
-            conexion.commit()
-            conexion.close()
 
             messagebox.showinfo("Éxito", "Cliente eliminado correctamente")
             limpiar()
@@ -359,20 +316,11 @@ def ventana_clientes():
         except:
             messagebox.showerror("Error", "No se puede eliminar. Puede estar relacionado con una venta.")
 
-    boton("Guardar Cliente", guardar).pack(pady=3)
-    boton("Mostrar Clientes", mostrar).pack(pady=3)
-    boton("Editar Cliente", editar).pack(pady=3)
-    boton("Eliminar Cliente", eliminar).pack(pady=3)
-
-    tk.Button(
-        ventana,
-        text="Regresar",
-        width=20,
-        height=2,
-        bg=COLOR_SALIR,
-        fg="white",
-        command=menu_principal
-    ).pack(pady=10)
+    crear_boton("Guardar Cliente", guardar).pack(pady=3)
+    crear_boton("Mostrar Clientes", mostrar).pack(pady=3)
+    crear_boton("Editar Cliente", editar).pack(pady=3)
+    crear_boton("Eliminar Cliente", eliminar).pack(pady=3)
+    crear_boton("Regresar", menu_principal, COLOR_SALIR, "white").pack(pady=10)
 
     mostrar()
 
@@ -380,14 +328,7 @@ def ventana_clientes():
 def ventana_ventas():
     limpiar_ventana()
     ventana.configure(bg=COLOR_FONDO)
-
-    tk.Label(
-        ventana,
-        text="REGISTRAR VENTA",
-        font=("Arial", 22, "bold"),
-        bg=COLOR_FONDO,
-        fg=COLOR_TITULO
-    ).pack(pady=10)
+    crear_titulo("REGISTRAR VENTA")
 
     frame_arriba = tk.Frame(ventana, bg=COLOR_FONDO)
     frame_arriba.pack()
@@ -408,13 +349,7 @@ def ventana_ventas():
     frame_tablas.pack(pady=15)
 
     tk.Label(frame_tablas, text="PRODUCTOS", bg=COLOR_FONDO, fg=COLOR_TITULO, font=("Arial", 12, "bold")).grid(row=0, column=0)
-
-    tabla_productos = ttk.Treeview(
-        frame_tablas,
-        columns=("ID", "Nombre", "Precio", "Stock"),
-        show="headings",
-        height=8
-    )
+    tabla_productos = ttk.Treeview(frame_tablas, columns=("ID", "Nombre", "Precio", "Stock"), show="headings", height=8)
 
     for col in ("ID", "Nombre", "Precio", "Stock"):
         tabla_productos.heading(col, text=col)
@@ -426,13 +361,7 @@ def ventana_ventas():
     tabla_productos.grid(row=1, column=0, padx=15)
 
     tk.Label(frame_tablas, text="CLIENTES", bg=COLOR_FONDO, fg=COLOR_TITULO, font=("Arial", 12, "bold")).grid(row=0, column=1)
-
-    tabla_clientes = ttk.Treeview(
-        frame_tablas,
-        columns=("ID", "Nombre", "Apellido"),
-        show="headings",
-        height=8
-    )
+    tabla_clientes = ttk.Treeview(frame_tablas, columns=("ID", "Nombre", "Apellido"), show="headings", height=8)
 
     for col in ("ID", "Nombre", "Apellido"):
         tabla_clientes.heading(col, text=col)
@@ -469,39 +398,28 @@ def ventana_ventas():
     tabla_ventas.pack(pady=10)
 
     def mostrar_productos():
-        for fila in tabla_productos.get_children():
-            tabla_productos.delete(fila)
+        tabla_productos.delete(*tabla_productos.get_children())
+        productos = ejecutar_consulta(
+            "SELECT id_producto, nombre, precio, stock FROM productos ORDER BY id_producto ASC",
+            retornar=True
+        )
 
-        conexion = conectar()
-        cursor = conexion.cursor()
-        cursor.execute("SELECT id_producto, nombre, precio, stock FROM productos ORDER BY id_producto ASC")
-
-        for producto in cursor.fetchall():
+        for producto in productos:
             tabla_productos.insert("", tk.END, values=producto)
 
-        conexion.close()
-
     def mostrar_clientes():
-        for fila in tabla_clientes.get_children():
-            tabla_clientes.delete(fila)
+        tabla_clientes.delete(*tabla_clientes.get_children())
+        clientes = ejecutar_consulta(
+            "SELECT id_cliente, nombre, apellido FROM clientes ORDER BY id_cliente ASC",
+            retornar=True
+        )
 
-        conexion = conectar()
-        cursor = conexion.cursor()
-        cursor.execute("SELECT id_cliente, nombre, apellido FROM clientes ORDER BY id_cliente ASC")
-
-        for cliente in cursor.fetchall():
+        for cliente in clientes:
             tabla_clientes.insert("", tk.END, values=cliente)
 
-        conexion.close()
-
     def mostrar_ventas():
-        for fila in tabla_ventas.get_children():
-            tabla_ventas.delete(fila)
-
-        conexion = conectar()
-        cursor = conexion.cursor()
-
-        cursor.execute(
+        tabla_ventas.delete(*tabla_ventas.get_children())
+        ventas = ejecutar_consulta(
             """
             SELECT ventas.id_venta, clientes.nombre, productos.nombre,
                    detalle_ventas.cantidad, detalle_ventas.subtotal, ventas.fecha
@@ -510,38 +428,40 @@ def ventana_ventas():
             INNER JOIN clientes ON ventas.id_cliente = clientes.id_cliente
             INNER JOIN productos ON detalle_ventas.id_producto = productos.id_producto
             ORDER BY ventas.id_venta ASC
-            """
+            """,
+            retornar=True
         )
 
-        for venta in cursor.fetchall():
+        for venta in ventas:
             tabla_ventas.insert("", tk.END, values=venta)
-
-        conexion.close()
 
     def registrar():
         try:
-            conexion = conectar()
-            cursor = conexion.cursor()
-
             producto_id = int(id_producto.get())
             cliente_id = int(id_cliente.get())
             cant = int(cantidad.get())
 
-            cursor.execute("SELECT precio, stock FROM productos WHERE id_producto=%s", (producto_id,))
-            producto = cursor.fetchone()
+            producto = ejecutar_consulta(
+                "SELECT precio, stock FROM productos WHERE id_producto=%s",
+                (producto_id,),
+                retornar=True
+            )
 
-            if producto is None:
+            if len(producto) == 0:
                 messagebox.showerror("Error", "Producto no encontrado")
                 return
 
-            precio = float(producto[0])
-            stock = int(producto[1])
+            precio = float(producto[0][0])
+            stock = int(producto[0][1])
 
             if cant > stock:
                 messagebox.showerror("Error", "No hay suficiente stock")
                 return
 
             subtotal = precio * cant
+
+            conexion = conectar()
+            cursor = conexion.cursor()
 
             cursor.execute(
                 "INSERT INTO ventas (id_cliente) VALUES (%s) RETURNING id_venta",
@@ -579,23 +499,9 @@ def ventana_ventas():
         except:
             messagebox.showerror("Error", "No se pudo registrar la venta")
 
-    boton("Registrar Venta", registrar).pack(pady=3)
-
-    boton(
-        "Actualizar Datos",
-        lambda: [mostrar_productos(), mostrar_clientes(), mostrar_ventas()]
-    ).pack(pady=3)
-
-    tk.Button(
-        ventana,
-        text="Regresar",
-        width=20,
-        height=2,
-        bg=COLOR_SALIR,
-        fg="white",
-        font=("Arial", 11, "bold"),
-        command=menu_principal
-    ).pack(pady=8)
+    crear_boton("Registrar Venta", registrar).pack(pady=3)
+    crear_boton("Actualizar Datos", lambda: [mostrar_productos(), mostrar_clientes(), mostrar_ventas()]).pack(pady=3)
+    crear_boton("Regresar", menu_principal, COLOR_SALIR, "white").pack(pady=8)
 
     mostrar_productos()
     mostrar_clientes()

@@ -6,7 +6,7 @@ def conectar():
             host="localhost",
             database="boutique_db",
             user="postgres",
-            password="18402001J@se"
+            password="Hola1234"
         )
 
         return conexion

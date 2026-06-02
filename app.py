@@ -77,7 +77,6 @@ def ventana_productos():
     limpiar_ventana()
     ventana.configure(bg=COLOR_FONDO)
     crear_titulo("GESTIÓN DE PRODUCTOS")
-
     tk.Label(ventana, text="ID para editar/eliminar", bg=COLOR_FONDO, fg=COLOR_TITULO).pack()
     entrada_id = tk.Entry(ventana, width=30)
     entrada_id.pack(pady=3)
@@ -194,10 +193,9 @@ def ventana_productos():
             messagebox.showerror("Error", "No se puede eliminar. Puede estar relacionado con una venta.")
 
     crear_boton("Guardar Producto", guardar).pack(pady=3)
-    crear_boton("Mostrar Productos", mostrar).pack(pady=3)
     crear_boton("Editar Producto", editar).pack(pady=3)
     crear_boton("Eliminar Producto", eliminar).pack(pady=3)
-    crear_boton("Regresar", menu_principal, COLOR_SALIR, "white").pack(pady=10)
+    crear_boton("Regresar", menu_principal, COLOR_SALIR, "white").pack(pady=3)
 
     mostrar()
 

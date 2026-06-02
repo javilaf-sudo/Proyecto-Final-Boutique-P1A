@@ -5,3 +5,4 @@
 #python -m pip install pg8000
 #python -m pip install pg8000 pyinstaller
 #python -m pip install psycopg2-binary
+#si consta de Postgresql para windows hay un archivo para restaurar llamado boutique_db.backup que puede utilizar para guardar datos del programa

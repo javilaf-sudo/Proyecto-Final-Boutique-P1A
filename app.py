@@ -315,7 +315,6 @@ def ventana_clientes():
             messagebox.showerror("Error", "No se puede eliminar. Puede estar relacionado con una venta.")
 
     crear_boton("Guardar Cliente", guardar).pack(pady=3)
-    crear_boton("Mostrar Clientes", mostrar).pack(pady=3)
     crear_boton("Editar Cliente", editar).pack(pady=3)
     crear_boton("Eliminar Cliente", eliminar).pack(pady=3)
     crear_boton("Regresar", menu_principal, COLOR_SALIR, "white").pack(pady=10)
@@ -433,11 +432,32 @@ def ventana_ventas():
         for venta in ventas:
             tabla_ventas.insert("", tk.END, values=venta)
 
+    def seleccionar_producto(_evento):
+        seleccion = tabla_productos.selection()
+        if seleccion:
+            valores = tabla_productos.item(seleccion[0], "values")
+            id_producto.delete(0, tk.END)
+            id_producto.insert(0, valores[0])
+
+    def seleccionar_cliente(_evento):
+        seleccion = tabla_clientes.selection()
+        if seleccion:
+            valores = tabla_clientes.item(seleccion[0], "values")
+            id_cliente.delete(0, tk.END)
+            id_cliente.insert(0, valores[0])
+
+    tabla_productos.bind("<<TreeviewSelect>>", seleccionar_producto)
+    tabla_clientes.bind("<<TreeviewSelect>>", seleccionar_cliente)
+
     def registrar():
         try:
-            producto_id = int(id_producto.get())
-            cliente_id = int(id_cliente.get())
-            cant = int(cantidad.get())
+            producto_id = int(id_producto.get().strip())
+            cliente_id = int(id_cliente.get().strip())
+            cant = int(cantidad.get().strip())
+
+            if cant <= 0:
+                messagebox.showerror("Error", "La cantidad debe ser mayor que cero")
+                return
 
             producto = ejecutar_consulta(
                 "SELECT precio, stock FROM productos WHERE id_producto=%s",
@@ -446,7 +466,17 @@ def ventana_ventas():
             )
 
             if len(producto) == 0:
-                messagebox.showerror("Error", "Producto no encontrado")
+                messagebox.showerror("Error", "Producto no encontrado. Selecciona un producto de la tabla.")
+                return
+
+            cliente = ejecutar_consulta(
+                "SELECT 1 FROM clientes WHERE id_cliente=%s",
+                (cliente_id,),
+                retornar=True
+            )
+
+            if len(cliente) == 0:
+                messagebox.showerror("Error", "Cliente no encontrado. Selecciona un cliente de la tabla.")
                 return
 
             precio = float(producto[0][0])
@@ -494,11 +524,12 @@ def ventana_ventas():
             mostrar_clientes()
             mostrar_ventas()
 
-        except:
-            messagebox.showerror("Error", "No se pudo registrar la venta")
+        except ValueError:
+            messagebox.showerror("Error", "ID Cliente, ID Producto y Cantidad deben ser numeros enteros.")
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo registrar la venta:\n{e}")
 
     crear_boton("Registrar Venta", registrar).pack(pady=3)
-    crear_boton("Actualizar Datos", lambda: [mostrar_productos(), mostrar_clientes(), mostrar_ventas()]).pack(pady=3)
     crear_boton("Regresar", menu_principal, COLOR_SALIR, "white").pack(pady=8)
 
     mostrar_productos()
